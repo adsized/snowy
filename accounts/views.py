@@ -40,6 +40,7 @@ from django_openid_auth.models import UserOpenID
 from django_openid_auth.forms import OpenIDLoginForm
 
 import django_openid_auth.views
+import django.contrib.auth.views
 
 def openid_registration(request, template_name='registration/registration_form.html'):
     registration_form = OpenIDRegistrationFormUniqueUser(request.POST or None)
@@ -132,7 +133,17 @@ def accounts_login(request, template_name='accounts/login.html', *args, **kwargs
     openid_form = OpenIDLoginForm()
     # change the label text to something nicer
     openid_form.fields['openid_identifier'].label = _("OpenID")
-    auth_form = AuthenticationForm()
+    # check wether what the form returned was valid POST data 
+    if request.method == "POST":
+        auth_form = AuthenticationForm(data=request.POST)
+        # check if the user is valid. If is_valid returns true we can be 99% certain the user is valid
+        if auth_form.is_valid():
+            # The user is valid, pass control to django_auth and return the result
+            return django.contrib.auth.views.login(request, auth_form.get_user())
+    else:
+        # The user submitted invalid data. Need to set the form so we can display the error
+        auth_form = AuthenticationForm(request)
+   
     return render_to_response(template_name, {
         'auth_form': auth_form,
         'openid_form': openid_form },
